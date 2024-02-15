@@ -5,7 +5,6 @@
 package main
 
 import (
-	"bytes"
 	"log"
 	"net/http"
 	"time"
@@ -24,7 +23,7 @@ const (
 	pingPeriod = (pongWait * 9) / 10
 
 	// Maximum message size allowed from peer.
-	maxMessageSize = 512
+	maxMessageSize = 8000
 )
 
 var (
@@ -33,8 +32,39 @@ var (
 )
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		// Replace "http://example.com" with the origin you want to allow.
+		//allowedOrigin := "https://0dfd-186-206-50-111.ngrok-free.app"
+		return true
+	},
+}
+
+type Message struct {
+	Username string     `json:"username"`
+	Message  [][]string `json:"message"`
+}
+
+type Player struct {
+	Id       string     `json:"id"`
+	Username string     `json:"username"`
+	Shape    [][]string `json:"shape"`
+	Bloco    Bloco      `json:"bloco"`
+	Num      int        `json:"num"`
+}
+
+type Bloco struct {
+	Position Position `json:"position"`
+	Shape    Shape    `json:"shape"`
+}
+
+type Shape struct {
+	Number int        `json:"number"`
+	Format [][]string `json:"format"`
+}
+
+type Position struct {
+	X int `json:"x"`
+	Y int `json:"y"`
 }
 
 // Client is a middleman between the websocket connection and the hub.
@@ -44,15 +74,12 @@ type Client struct {
 	// The websocket connection.
 	conn *websocket.Conn
 
+	player *Player
 	// Buffered channel of outbound messages.
-	send chan []byte
+	send chan map[string]*Player
 }
 
 // readPump pumps messages from the websocket connection to the hub.
-//
-// The application runs readPump in a per-connection goroutine. The application
-// ensures that there is at most one reader on a connection by executing all
-// reads from this goroutine.
 func (c *Client) readPump() {
 	defer func() {
 		c.hub.unregister <- c
@@ -62,23 +89,24 @@ func (c *Client) readPump() {
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
-		_, message, err := c.conn.ReadMessage()
+		var msg Player
+
+		err := c.conn.ReadJSON(&msg)
+
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("error: %v", err)
 			}
 			break
 		}
-		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
-		c.hub.broadcast <- message
+		var player = c.hub.players[msg.Id]
+		player.Shape = msg.Shape
+		player.Bloco = msg.Bloco
+		c.hub.broadcast <- c.hub.players
 	}
 }
 
 // writePump pumps messages from the hub to the websocket connection.
-//
-// A goroutine running writePump is started for each connection. The
-// application ensures that there is at most one writer to a connection by
-// executing all writes from this goroutine.
 func (c *Client) writePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
@@ -87,7 +115,7 @@ func (c *Client) writePump() {
 	}()
 	for {
 		select {
-		case message, ok := <-c.send:
+		case msg, ok := <-c.send:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// The hub closed the channel.
@@ -95,22 +123,11 @@ func (c *Client) writePump() {
 				return
 			}
 
-			w, err := c.conn.NextWriter(websocket.TextMessage)
+			err := c.conn.WriteJSON(msg)
 			if err != nil {
 				return
 			}
-			w.Write(message)
 
-			// Add queued chat messages to the current websocket message.
-			n := len(c.send)
-			for i := 0; i < n; i++ {
-				w.Write(newline)
-				w.Write(<-c.send)
-			}
-
-			if err := w.Close(); err != nil {
-				return
-			}
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
@@ -120,18 +137,23 @@ func (c *Client) writePump() {
 	}
 }
 
-// serveWs handles websocket requests from the peer.
 func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
-		return
 	}
-	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256)}
+	id := r.URL.Query().Get("idPlayer")
+	var player = &Player{
+		Id:       id,
+		Username: id,
+		Shape:    [][]string{},
+		Bloco:    Bloco{},
+		Num:      len(hub.players),
+	}
+	client := &Client{player: player, hub: hub, conn: conn, send: make(chan map[string]*Player, 1024)}
 	client.hub.register <- client
+	hub.players[id] = player
 
-	// Allow collection of memory referenced by the caller by doing all work in
-	// new goroutines.
 	go client.writePump()
 	go client.readPump()
 }

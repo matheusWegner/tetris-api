@@ -2,54 +2,7 @@
 <html lang="en">
 <head>
 <title>Chat Example</title>
-<script type="text/javascript">
-window.onload = function () {
-    var conn;
-    var msg = document.getElementById("msg");
-    var log = document.getElementById("log");
 
-    function appendLog(item) {
-        var doScroll = log.scrollTop > log.scrollHeight - log.clientHeight - 1;
-        log.appendChild(item);
-        if (doScroll) {
-            log.scrollTop = log.scrollHeight - log.clientHeight;
-        }
-    }
-
-    document.getElementById("form").onsubmit = function () {
-        if (!conn) {
-            return false;
-        }
-        if (!msg.value) {
-            return false;
-        }
-        conn.send(msg.value);
-        msg.value = "";
-        return false;
-    };
-
-    if (window["WebSocket"]) {
-        conn = new WebSocket("ws://" + document.location.host + "/ws");
-        conn.onclose = function (evt) {
-            var item = document.createElement("div");
-            item.innerHTML = "<b>Connection closed.</b>";
-            appendLog(item);
-        };
-        conn.onmessage = function (evt) {
-            var messages = evt.data.split('\n');
-            for (var i = 0; i < messages.length; i++) {
-                var item = document.createElement("div");
-                item.innerText = messages[i];
-                appendLog(item);
-            }
-        };
-    } else {
-        var item = document.createElement("div");
-        item.innerHTML = "<b>Your browser does not support WebSockets.</b>";
-        appendLog(item);
-    }
-};
-</script>
 <style type="text/css">
 html {
     overflow: hidden;
@@ -96,3 +49,77 @@ body {
 </form>
 </body>
 </html>
+<script>
+let teste = [[9, null, null, null, null, null, null, null, null, null, null, 9],
+   [9, null, null, null, null, null, null, null, null, null, null, 9],
+   [9, null, null, null, null, null, null, null, null, null, null, 9],
+   [9, null, null, null, null, null, null, null, null, null, null, 9],
+   [9, null, null, null, null, null, null, null, null, null, null, 9],
+   [9, null, null, null, null, null, null, null, null, null, null, 9],
+   [9, null, null, null, null, null, null, null, null, null, null, 9],
+   [9, null, null, null, null, null, null, null, null, null, null, 9],
+   [9, null, null, null, null, null, null, null, null, null, null, 9],
+   [9, null, null, null, null, null, null, null, null, null, null, 9],
+   [9, null, null, null, null, null, null, null, null, null, null, 9],
+   [9, null, null, null, null, null, null, null, null, null, null, 9],
+   [9, null, null, null, null, null, null, null, null, null, null, 9],
+   [9, null, null, null, null, null, null, null, null, null, null, 9],
+   [9, null, null, null, null, null, null, null, null, null, null, 9],
+   [9, null, null, null, null, null, null, null, null, null, null, 9],
+   [9, null, null, null, null, null, null, null, null, null, null, 9],
+   [9, null, null, null, null, null, null, null, null, null, null, 9],
+   [9, null, null, null, null, null, null, null, null, null, null, 9],
+   [9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9]];
+window.onload = function () {
+    var conn;
+    var msg = document.getElementById("msg");
+    var log = document.getElementById("log");
+
+    function appendLog(item) {
+        var doScroll = log.scrollTop > log.scrollHeight - log.clientHeight - 1;
+        log.appendChild(item);
+        if (doScroll) {
+            log.scrollTop = log.scrollHeight - log.clientHeight;
+        }
+    }
+
+    document.getElementById("form").onsubmit = function () {
+        if (!conn) {
+            return false;
+        }
+        if (!msg.value) {
+            return false;
+        }
+        let body = {};
+        body.Message = "teste";
+        conn.send(JSON.stringify(body));
+        msg.value = "";
+        return false;
+    };
+
+    if (window["WebSocket"]) {
+        conn = new WebSocket("ws://" + document.location.host + "/ws");
+        conn.onclose = function (evt) {
+            var item = document.createElement("div");
+            item.innerHTML = "<b>Connection closed.</b>";
+            appendLog(item);
+        };
+        conn.onmessage = function (evt) {
+            console.log(evt)
+            var messages = evt.data.split('\n');
+            for (var i = 0; i < messages.length -1; i++) {
+                var item = document.createElement("div");
+                let body = JSON.parse(messages[i]);
+                console.log(body);
+                item.innerText = messages[i];
+                appendLog(item);
+            }
+        };
+    } else {
+        var item = document.createElement("div");
+        item.innerHTML = "<b>Your browser does not support WebSockets.</b>";
+        appendLog(item);
+    }
+};
+
+</script>

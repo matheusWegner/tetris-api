@@ -9,7 +9,7 @@
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "program": "C:/projetos/pessoais/tetris-api/main.go"
+            "program": "C:/projetos/pessoais/tetris-api/"
         }
     ]
 }

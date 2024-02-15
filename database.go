@@ -1,6 +1,6 @@
 package main
 
-import (
+/*import (
 	"database/sql"
 	"log"
 
@@ -75,3 +75,4 @@ type User struct {
 	Email    string
 	Password string
 }
+*/

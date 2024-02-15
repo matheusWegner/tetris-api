@@ -9,9 +9,11 @@ package main
 type Hub struct {
 	// Registered clients.
 	clients map[*Client]bool
+	//Jogadores
+	players map[string]*Player
 
 	// Inbound messages from the clients.
-	broadcast chan []byte
+	broadcast chan map[string]*Player
 
 	// Register requests from the clients.
 	register chan *Client
@@ -22,7 +24,7 @@ type Hub struct {
 
 func newHub() *Hub {
 	return &Hub{
-		broadcast:  make(chan []byte),
+		broadcast:  make(chan map[string]*Player),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		clients:    make(map[*Client]bool),
@@ -37,9 +39,12 @@ func (h *Hub) run() {
 		case client := <-h.unregister:
 			if _, ok := h.clients[client]; ok {
 				delete(h.clients, client)
+				delete(h.players, client.player.Id)
 				close(client.send)
 			}
 		case message := <-h.broadcast:
+			// Marshal the Message struct to JSON before broadcasting
+
 			for client := range h.clients {
 				select {
 				case client.send <- message:
